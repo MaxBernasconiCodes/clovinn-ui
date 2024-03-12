@@ -1,5 +1,17 @@
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react'
+
+import DatePicker from '@mui/lab/DatePicker'
+import TimePicker from '@mui/lab/TimePicker'
 import {
+	Button,
+	Input,
+	ListSubheader,
+	MenuItem,
+	Rating,
+	Select,
+	SelectChangeEvent,
+	Slider,
+	Switch,
 	Table,
 	TableBody,
 	TableCell,
@@ -7,15 +19,25 @@ import {
 	TableHead,
 	TablePagination,
 	TableRow,
-	Button,
+	TextareaAutosize,
+	TextField,
 } from '@mui/material'
+
+type Option = {
+	value: string
+	display: string
+	disabled?: boolean
+}
 
 type Column = {
 	name: string
+	rename?: string
 	type: string
 	editable?: boolean
-	editCallback?: () => void
+	editCallback?: (newValue: any, columnName: string) => void
 	visible?: boolean
+	customComponent?: React.ComponentType<any>
+	options?: Option[] | { groupName: string; options: Option[] }[]
 }
 
 type ActionItemDataTable = {
@@ -36,7 +58,7 @@ type DataTableProps = {
 	pageNum: number
 	totalQuantity: number
 	setPageNum: Dispatch<SetStateAction<number>>
-	emptyResultText?: string
+	emptyResult?: string | JSX.Element
 	isPaginated?: boolean
 }
 
@@ -52,7 +74,7 @@ function DataTable({
 	pageNum,
 	totalQuantity,
 	setPageNum,
-	emptyResultText = 'No results found',
+	emptyResult = 'No results found',
 	isPaginated = false,
 }: DataTableProps) {
 	const [data, setData] = useState(rawData)
@@ -61,10 +83,10 @@ function DataTable({
 	const [headers, setHeaders] = useState(columns)
 
 	useEffect(() => {
-		if (data.length && !headers) {
-			const newHeaders = Object.keys(data[0]).map((key) => ({
+		if (data.length > 0 && !headers) {
+			const newHeaders = Object.keys(data[0]).map((key: any) => ({
 				name: key,
-				type: typeof data[0][key],
+				type: typeof data[key],
 				visible: true,
 			}))
 			setHeaders(newHeaders)
@@ -101,7 +123,7 @@ function DataTable({
 								(header) =>
 									header.visible && (
 										<TableCell key={header.name} style={styles.TableCell}>
-											{header.name}
+											{header.rename || header.name}
 										</TableCell>
 									)
 							)}
@@ -109,31 +131,247 @@ function DataTable({
 					</TableRow>
 				</TableHead>
 				<TableBody style={styles.TableBody}>
-					{(isPaginated ? data : data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)).map(
-						(row) => (
+					{(isPaginated
+						? data
+						: data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+					).length > 0 ? (
+						data.map((row) => (
 							<TableRow key={row.id}>
 								{headers &&
-									headers.map((header) =>
-										header.visible ? (
+									headers.map((header) => {
+										if (!header.visible) return null
+
+										let cellContent
+										if (header.customComponent) {
+											const CustomComponent = header.customComponent
+											cellContent = (
+												<CustomComponent
+													row={row}
+													onChange={(
+														event: React.ChangeEvent<HTMLInputElement>
+													) => {
+														if (header.editCallback) {
+															header.editCallback(
+																event.target.value,
+																header.name
+															)
+														}
+													}}
+												/>
+											)
+										} else if (header.editable) {
+											switch (header.type) {
+												case 'boolean':
+													cellContent = (
+														<Switch
+															checked={row[header.name]}
+															onChange={(event) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		event.target.checked,
+																		header.name
+																	)
+																}
+															}}
+														/>
+													)
+													break
+												case 'number':
+													cellContent = (
+														<TextField
+															type="number"
+															defaultValue={row[header.name]}
+															onChange={(event) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		event.target.value,
+																		header.name
+																	)
+																}
+															}}
+														/>
+													)
+													break
+												case 'color':
+													cellContent = (
+														<Input
+															type="color"
+															defaultValue={row[header.name]}
+															onChange={(event) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		event.target.value,
+																		header.name
+																	)
+																}
+															}}
+														/>
+													)
+													break
+												case 'range':
+													cellContent = (
+														<Slider
+															defaultValue={row[header.name]}
+															onChange={(event, newValue) => {
+																if (header.editCallback) {
+																	header.editCallback(newValue, header.name)
+																}
+															}}
+														/>
+													)
+													break
+												case 'date':
+													cellContent = (
+														<DatePicker
+															value={row[header.name]}
+															onChange={(newValue: string) => {
+																if (header.editCallback) {
+																	header.editCallback(newValue, header.name)
+																}
+															}}
+														/>
+													)
+													break
+												case 'time':
+													cellContent = (
+														<TimePicker
+															value={row[header.name]}
+															onChange={(newValue: string) => {
+																if (header.editCallback) {
+																	header.editCallback(newValue, header.name)
+																}
+															}}
+														/>
+													)
+													break
+												case 'select':
+													cellContent = (
+														<Select
+															value={row[header.name]}
+															onChange={(event: SelectChangeEvent<any>) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		String(event.target.value),
+																		header.name
+																	)
+																}
+															}}
+														>
+															{Array.isArray(header.options) &&
+															header.options.length > 0 &&
+															'value' in header.options[0]
+																? (header.options as Option[]).map(
+																		(option: Option) => (
+																			<MenuItem
+																				key={option.value}
+																				value={option.value}
+																				disabled={option.disabled}
+																			>
+																				{option.display}
+																			</MenuItem>
+																		)
+																	)
+																: (
+																		header.options as {
+																			groupName: string
+																			options: Option[]
+																		}[]
+																	).map((group) => (
+																		<>
+																			<ListSubheader>
+																				{group.groupName}
+																			</ListSubheader>
+																			{group.options.map((option: Option) => (
+																				<MenuItem
+																					key={option.value}
+																					value={option.value}
+																					disabled={option.disabled}
+																				>
+																					{option.display}
+																				</MenuItem>
+																			))}
+																		</>
+																	))}
+														</Select>
+													)
+													break
+												case 'textarea':
+													cellContent = (
+														<TextareaAutosize
+															defaultValue={row[header.name]}
+															onChange={(event) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		event.target.value,
+																		header.name
+																	)
+																}
+															}}
+														/>
+													)
+													break
+												case 'rating':
+													cellContent = (
+														<Rating
+															value={row[header.name]}
+															onChange={(event, newValue) => {
+																if (header.editCallback) {
+																	header.editCallback(newValue, header.name)
+																}
+															}}
+														/>
+													)
+													break
+												default:
+													cellContent = (
+														<TextField
+															defaultValue={row[header.name]}
+															onChange={(event) => {
+																if (header.editCallback) {
+																	header.editCallback(
+																		event.target.value,
+																		header.name
+																	)
+																}
+															}}
+														/>
+													)
+											}
+										} else {
+											cellContent = row[header.name]
+										}
+
+										return (
 											<TableCell key={header.name} style={styles.TableCell}>
-												{row[header.name]}
+												{cellContent}
 											</TableCell>
-										) : null
-									)}
+										)
+									})}
 								{actions &&
 									actions.map((action) => (
 										<TableCell key={action.id}>
 											<Button
 												variant="contained"
 												color="primary"
-												onClick={() => action.functionAction && action.functionAction(row.id)}
+												onClick={() =>
+													action.functionAction && action.functionAction(row.id)
+												}
 											>
 												{action.label}
 											</Button>
 										</TableCell>
 									))}
 							</TableRow>
-						)
+						))
+					) : (
+						<TableRow>
+							<TableCell
+								colSpan={headers && headers.length + (actions ? 1 : 0)}
+								style={{ textAlign: 'center' }}
+							>
+								{emptyResult}
+							</TableCell>
+						</TableRow>
 					)}
 				</TableBody>
 			</Table>

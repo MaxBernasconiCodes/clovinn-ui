@@ -1,6 +1,6 @@
 {
   "name": "clovinn-ui",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Set of IU tools for Clovinn",
   "main": "index.js",
   "scripts": {
@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/MaxBernasconiCodes/clovinn-ui#readme",
   "dependencies": {
+    "@mui/icons-material": "^5.15.12",
+    "@mui/lab": "^5.0.0-alpha.167",
     "@mui/material": "^5.15.12"
   }
 }

@@ -30,12 +30,12 @@ type Option = {
 }
 
 type Column = {
-	name: string
+	name: string // TODO: make name optional so that a custom field may not depend on a data column
 	rename?: string
 	type: string
 	editable?: boolean
 	editCallback?: (newValue: any, columnName: string) => void
-	visible?: boolean
+	hidden?: boolean
 	customComponent?: React.ComponentType<any>
 	options?: Option[] | { groupName: string; options: Option[] }[]
 }
@@ -87,7 +87,6 @@ function DataTable({
 			const newHeaders = Object.keys(data[0]).map((key: any) => ({
 				name: key,
 				type: typeof data[key],
-				visible: true,
 			}))
 			setHeaders(newHeaders)
 		}
@@ -121,7 +120,7 @@ function DataTable({
 						{headers &&
 							headers.map(
 								(header) =>
-									header.visible && (
+									!header.hidden && (
 										<TableCell key={header.name} style={styles.TableCell}>
 											{header.rename || header.name}
 										</TableCell>
@@ -139,7 +138,7 @@ function DataTable({
 							<TableRow key={row.id}>
 								{headers &&
 									headers.map((header) => {
-										if (!header.visible) return null
+										if (header.hidden) return null
 
 										let cellContent
 										if (header.customComponent) {
